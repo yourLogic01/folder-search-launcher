@@ -8,6 +8,9 @@ interface Window {
     // Project APIs
     getProjects: () => Promise<{ name: string; path: string; root: string }[]>;
     openInVSCode: (path: string) => Promise<void>;
+    openInExplorer: (path: string) => Promise<void>;
+    openInTerminal: (path: string) => Promise<void>;
+    openInGitBash: (path: string) => Promise<void>;
 
     // Window APIs
     hideWindow: () => Promise<void>;

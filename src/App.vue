@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Folder, Star, Plus, X, FolderOpen } from "lucide-vue-next";
+import { Folder, Star, Plus, X, FolderOpen, Code, FolderOpen as FolderIcon, Terminal, GitBranch } from "lucide-vue-next";
 import { ref, onMounted, computed, watch, nextTick } from "vue";
 
 type Project = { name: string; path: string; root: string };
@@ -13,6 +13,16 @@ const favorites = ref<Set<string>>(new Set());
 const recents = ref<string[]>([]);
 const rootFolders = ref<string[]>([]);
 const showRootManager = ref(false);
+const showActionModal = ref(false);
+const selectedProject = ref<Project | null>(null);
+const actionSelectedIndex = ref(0);
+
+const actions = [
+  { label: "Open with VSCode", icon: Code, key: "vscode" },
+  { label: "Open in File Explorer", icon: FolderIcon, key: "explorer" },
+  { label: "Open in Terminal", icon: Terminal, key: "terminal" },
+  { label: "Open with Git Bash", icon: GitBranch, key: "gitbash" },
+] as const;
 
 const addRootFolder = async () => {
   const updated = await window.api.addRootFolder();
@@ -110,12 +120,48 @@ const scrollToSelected = () => {
 
 const openSelected = async () => {
   const item = sorted.value[selectedIndex.value];
-  if (!item) return;
-  await window.api.recordRecent(item.path);
-  await window.api.openInVSCode(item.path);
-  keyword.value = "";
-  selectedIndex.value = 0;
+  if (!item || !listContainerRef.value) return;
+
+  // Show action modal
+  selectedProject.value = item;
+  showActionModal.value = true;
+  actionSelectedIndex.value = 0;
+};
+
+const executeAction = async (actionKey: string) => {
+  if (!selectedProject.value) return;
+
+  const project = selectedProject.value;
+
+  // Record recent
+  await window.api.recordRecent(project.path);
+
+  // Execute based on action
+  switch (actionKey) {
+    case "vscode":
+      await window.api.openInVSCode(project.path);
+      break;
+    case "explorer":
+      await window.api.openInExplorer(project.path);
+      break;
+    case "terminal":
+      await window.api.openInTerminal(project.path);
+      break;
+    case "gitbash":
+      await window.api.openInGitBash(project.path);
+      break;
+  }
+
+  // Close modal and hide window
+  closeActionModal();
   await window.api.hideWindow();
+};
+
+const closeActionModal = () => {
+  showActionModal.value = false;
+  selectedProject.value = null;
+  actionSelectedIndex.value = 0;
+  focusInput();
 };
 
 const hideLauncher = async () => {
@@ -126,6 +172,38 @@ const hideLauncher = async () => {
 };
 
 const onKeydown = (e: KeyboardEvent) => {
+  // Handle action modal navigation
+  if (showActionModal.value) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (e.key === "ArrowDown") {
+        actionSelectedIndex.value = (actionSelectedIndex.value + 1) % actions.length;
+      } else {
+        actionSelectedIndex.value = (actionSelectedIndex.value - 1 + actions.length) % actions.length;
+      }
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      executeAction(actions[actionSelectedIndex.value].key);
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeActionModal();
+      focusInput();
+    }
+
+    // Number keys for quick selection
+    if (e.key >= "1" && e.key <= "4") {
+      e.preventDefault();
+      const index = parseInt(e.key) - 1;
+      executeAction(actions[index].key);
+    }
+
+    return;
+  }
+
   if (showRootManager.value && e.key !== "Escape") return;
 
   if (e.key === "ArrowDown") {
@@ -268,6 +346,31 @@ const getRootName = (rootPath: string) => {
 
         <p v-else-if="rootFolders.length > 0 && keyword.trim() && !sorted.length" class="text-sm text-zinc-500 mt-4 text-center">No projects found</p>
       </div>
+
+      <!-- ACTION MODAL - Positioned to the right of selected item -->
+      <Transition name="fade">
+        <div v-if="showActionModal" class="fixed inset-0 z-50" @click.self="closeActionModal">
+          <div
+            class="absolute bg-zinc-800/95 backdrop-blur-sm rounded-lg shadow-2xl border border-zinc-700/60 w-64 py-1 animate-[scaleFadeIn_100ms_ease-out_forwards]"
+            :style="{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(140px, -50%)',
+            }"
+          >
+            <button
+              v-for="(action, i) in actions"
+              :key="action.key"
+              :class="['w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors text-left', i === actionSelectedIndex ? 'bg-indigo-500 text-white' : 'hover:bg-zinc-700/50 text-zinc-100']"
+              @click="executeAction(action.key)"
+            >
+              <component :is="action.icon" :size="16" class="flex-shrink-0" />
+              <span class="flex-1">{{ action.label }}</span>
+              <span class="text-xs opacity-50 flex-shrink-0">{{ i + 1 }}</span>
+            </button>
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -301,5 +404,16 @@ const getRootName = (rootPath: string) => {
 /* Smooth scroll behavior */
 .custom-scrollbar {
   scroll-behavior: smooth;
+}
+
+/* Fade transition for modal */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

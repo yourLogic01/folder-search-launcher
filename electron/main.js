@@ -163,6 +163,55 @@ app.whenReady().then(() => {
     exec(`code "${projectPath}"`);
   });
 
+  ipcMain.handle("open-explorer", async (_, projectPath) => {
+    // Windows
+    if (process.platform === "win32") {
+      exec(`explorer "${projectPath}"`);
+    }
+    // macOS
+    else if (process.platform === "darwin") {
+      exec(`open "${projectPath}"`);
+    }
+    // Linux
+    else {
+      exec(`xdg-open "${projectPath}"`);
+    }
+  });
+
+  ipcMain.handle("open-terminal", async (_, projectPath) => {
+    // Windows
+    if (process.platform === "win32") {
+      exec(`start cmd /K "cd /d "${projectPath}""`);
+    }
+    // macOS
+    else if (process.platform === "darwin") {
+      exec(`open -a Terminal "${projectPath}"`);
+    }
+    // Linux
+    else {
+      exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
+    }
+  });
+
+  ipcMain.handle("open-gitbash", async (_, projectPath) => {
+    // Git Bash is primarily for Windows
+    if (process.platform === "win32") {
+      // Try Git Bash from common installation paths
+      exec(`"C:\\Program Files\\Git\\git-bash.exe" --cd="${projectPath}"`, (error) => {
+        if (error) {
+          // Fallback to opening in current terminal
+          exec(`start bash -c "cd '${projectPath}' && exec bash"`);
+        }
+      });
+    }
+    // On macOS/Linux, just open regular terminal with bash
+    else if (process.platform === "darwin") {
+      exec(`open -a Terminal "${projectPath}"`);
+    } else {
+      exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
+    }
+  });
+
   ipcMain.handle("hide-window", () => {
     if (mainWindow) {
       mainWindow.hide();

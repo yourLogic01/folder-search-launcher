@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("api", {
   // Project APIs
   getProjects: () => ipcRenderer.invoke("get-projects"),
   openInVSCode: (projectPath) => ipcRenderer.invoke("open-vscode", projectPath),
+  openInExplorer: (projectPath) => ipcRenderer.invoke("open-explorer", projectPath),
+  openInTerminal: (projectPath) => ipcRenderer.invoke("open-terminal", projectPath),
+  openInGitBash: (projectPath) => ipcRenderer.invoke("open-gitbash", projectPath),
 
   // Window APIs
   hideWindow: () => ipcRenderer.invoke("hide-window"),

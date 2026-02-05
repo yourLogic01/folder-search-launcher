@@ -8,6 +8,7 @@ const projects = ref<Project[]>([]);
 const keyword = ref("");
 const selectedIndex = ref(0);
 const inputRef = ref<HTMLInputElement | null>(null);
+const listContainerRef = ref<HTMLDivElement | null>(null);
 const favorites = ref<Set<string>>(new Set());
 const recents = ref<string[]>([]);
 const rootFolders = ref<string[]>([]);
@@ -94,6 +95,19 @@ watch(keyword, () => {
   selectedIndex.value = 0;
 });
 
+const scrollToSelected = () => {
+  nextTick(() => {
+    if (!listContainerRef.value) return;
+    const selectedElement = listContainerRef.value.querySelector(`[data-index="${selectedIndex.value}"]`);
+    if (selectedElement) {
+      selectedElement.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  });
+};
+
 const openSelected = async () => {
   const item = sorted.value[selectedIndex.value];
   if (!item) return;
@@ -118,12 +132,14 @@ const onKeydown = (e: KeyboardEvent) => {
     e.preventDefault();
     if (!filtered.value.length) return;
     selectedIndex.value = (selectedIndex.value + 1) % filtered.value.length;
+    scrollToSelected();
   }
 
   if (e.key === "ArrowUp") {
     e.preventDefault();
     if (!filtered.value.length) return;
     selectedIndex.value = (selectedIndex.value - 1 + filtered.value.length) % filtered.value.length;
+    scrollToSelected();
   }
 
   if (e.key === "Enter") {
@@ -218,11 +234,12 @@ const getRootName = (rootPath: string) => {
         </div>
 
         <!-- PROJECT LIST - MAX 5 ITEMS VISIBLE WITH SCROLL -->
-        <div v-else-if="sorted.length" class="overflow-y-auto custom-scrollbar -mr-1 pr-1" style="max-height: 310px">
+        <div v-else-if="sorted.length" ref="listContainerRef" class="overflow-y-auto custom-scrollbar -mr-1 pr-1" style="max-height: 310px">
           <ul class="space-y-1 list-none">
             <li
               v-for="(p, i) in sorted"
               :key="p.path"
+              :data-index="i"
               :class="['flex items-center justify-between px-3 py-2 rounded-lg transition-colors cursor-pointer', i === selectedIndex ? 'bg-indigo-500/90' : 'bg-zinc-800/60 hover:bg-zinc-800']"
               @click="
                 selectedIndex = i;

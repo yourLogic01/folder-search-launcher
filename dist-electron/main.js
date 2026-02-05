@@ -1,17 +1,19 @@
-import electron, { app as app$1, globalShortcut, ipcMain as ipcMain$1, dialog, BrowserWindow } from "electron";
-import path$1 from "path";
-import { fileURLToPath } from "url";
-import process$1 from "node:process";
-import path from "node:path";
-import { promisify, isDeepStrictEqual } from "node:util";
-import fs from "node:fs";
-import crypto from "node:crypto";
-import assert from "node:assert";
-import os from "node:os";
-import "node:events";
-import "node:stream";
-import fs$1 from "fs";
-import { exec } from "child_process";
+"use strict";
+const electron = require("electron");
+const path$1 = require("path");
+const url = require("url");
+const process$1 = require("node:process");
+const path = require("node:path");
+const node_util = require("node:util");
+const fs = require("node:fs");
+const crypto = require("node:crypto");
+const assert = require("node:assert");
+const os = require("node:os");
+require("node:events");
+require("node:stream");
+const fs$1 = require("fs");
+const child_process = require("child_process");
+var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
 const isObject = (value) => {
   const type2 = typeof value;
   return value !== null && (type2 === "object" || type2 === "function");
@@ -426,14 +428,14 @@ const RETRYIFY_OPTIONS = {
 const FS = {
   attempt: {
     /* ASYNC */
-    chmod: attemptifyAsync(promisify(fs.chmod), ATTEMPTIFY_CHANGE_ERROR_OPTIONS),
-    chown: attemptifyAsync(promisify(fs.chown), ATTEMPTIFY_CHANGE_ERROR_OPTIONS),
-    close: attemptifyAsync(promisify(fs.close), ATTEMPTIFY_NOOP_OPTIONS),
-    fsync: attemptifyAsync(promisify(fs.fsync), ATTEMPTIFY_NOOP_OPTIONS),
-    mkdir: attemptifyAsync(promisify(fs.mkdir), ATTEMPTIFY_NOOP_OPTIONS),
-    realpath: attemptifyAsync(promisify(fs.realpath), ATTEMPTIFY_NOOP_OPTIONS),
-    stat: attemptifyAsync(promisify(fs.stat), ATTEMPTIFY_NOOP_OPTIONS),
-    unlink: attemptifyAsync(promisify(fs.unlink), ATTEMPTIFY_NOOP_OPTIONS),
+    chmod: attemptifyAsync(node_util.promisify(fs.chmod), ATTEMPTIFY_CHANGE_ERROR_OPTIONS),
+    chown: attemptifyAsync(node_util.promisify(fs.chown), ATTEMPTIFY_CHANGE_ERROR_OPTIONS),
+    close: attemptifyAsync(node_util.promisify(fs.close), ATTEMPTIFY_NOOP_OPTIONS),
+    fsync: attemptifyAsync(node_util.promisify(fs.fsync), ATTEMPTIFY_NOOP_OPTIONS),
+    mkdir: attemptifyAsync(node_util.promisify(fs.mkdir), ATTEMPTIFY_NOOP_OPTIONS),
+    realpath: attemptifyAsync(node_util.promisify(fs.realpath), ATTEMPTIFY_NOOP_OPTIONS),
+    stat: attemptifyAsync(node_util.promisify(fs.stat), ATTEMPTIFY_NOOP_OPTIONS),
+    unlink: attemptifyAsync(node_util.promisify(fs.unlink), ATTEMPTIFY_NOOP_OPTIONS),
     /* SYNC */
     chmodSync: attemptifySync(fs.chmodSync, ATTEMPTIFY_CHANGE_ERROR_OPTIONS),
     chownSync: attemptifySync(fs.chownSync, ATTEMPTIFY_CHANGE_ERROR_OPTIONS),
@@ -447,14 +449,14 @@ const FS = {
   },
   retry: {
     /* ASYNC */
-    close: retryifyAsync(promisify(fs.close), RETRYIFY_OPTIONS),
-    fsync: retryifyAsync(promisify(fs.fsync), RETRYIFY_OPTIONS),
-    open: retryifyAsync(promisify(fs.open), RETRYIFY_OPTIONS),
-    readFile: retryifyAsync(promisify(fs.readFile), RETRYIFY_OPTIONS),
-    rename: retryifyAsync(promisify(fs.rename), RETRYIFY_OPTIONS),
-    stat: retryifyAsync(promisify(fs.stat), RETRYIFY_OPTIONS),
-    write: retryifyAsync(promisify(fs.write), RETRYIFY_OPTIONS),
-    writeFile: retryifyAsync(promisify(fs.writeFile), RETRYIFY_OPTIONS),
+    close: retryifyAsync(node_util.promisify(fs.close), RETRYIFY_OPTIONS),
+    fsync: retryifyAsync(node_util.promisify(fs.fsync), RETRYIFY_OPTIONS),
+    open: retryifyAsync(node_util.promisify(fs.open), RETRYIFY_OPTIONS),
+    readFile: retryifyAsync(node_util.promisify(fs.readFile), RETRYIFY_OPTIONS),
+    rename: retryifyAsync(node_util.promisify(fs.rename), RETRYIFY_OPTIONS),
+    stat: retryifyAsync(node_util.promisify(fs.stat), RETRYIFY_OPTIONS),
+    write: retryifyAsync(node_util.promisify(fs.write), RETRYIFY_OPTIONS),
+    writeFile: retryifyAsync(node_util.promisify(fs.writeFile), RETRYIFY_OPTIONS),
     /* SYNC */
     closeSync: retryifySync(fs.closeSync, RETRYIFY_OPTIONS),
     fsyncSync: retryifySync(fs.fsyncSync, RETRYIFY_OPTIONS),
@@ -15762,7 +15764,7 @@ class Conf {
     const onChange = () => {
       const oldValue = currentValue;
       const newValue = this.store;
-      if (isDeepStrictEqual(newValue, oldValue)) {
+      if (node_util.isDeepStrictEqual(newValue, oldValue)) {
         return;
       }
       currentValue = newValue;
@@ -15778,7 +15780,7 @@ class Conf {
     const onChange = () => {
       const oldValue = currentValue;
       const newValue = getter();
-      if (isDeepStrictEqual(newValue, oldValue)) {
+      if (node_util.isDeepStrictEqual(newValue, oldValue)) {
         return;
       }
       currentValue = newValue;
@@ -16120,7 +16122,7 @@ class ElectronStore extends Conf {
     }
   }
 }
-const __filename$1 = fileURLToPath(import.meta.url);
+const __filename$1 = url.fileURLToPath(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("main.js", document.baseURI).href);
 const __dirname$1 = path$1.dirname(__filename$1);
 let mainWindow = null;
 const store = new ElectronStore();
@@ -16137,8 +16139,14 @@ function getRecents() {
 function setRecents(list) {
   store.set("recents", list);
 }
+function getRootFolders() {
+  return store.get("rootFolders", []);
+}
+function setRootFolders(list) {
+  store.set("rootFolders", list);
+}
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  mainWindow = new electron.BrowserWindow({
     width: 600,
     height: 400,
     show: false,
@@ -16147,25 +16155,33 @@ function createWindow() {
     transparent: true,
     backgroundColor: "#00000000",
     hasShadow: false,
+    alwaysOnTop: false,
+    skipTaskbar: false,
     webPreferences: {
       preload: path$1.join(__dirname$1, "preload.js"),
-      // Pastikan path ini benar
       contextIsolation: true,
-      // Tambahkan ini
       nodeIntegration: false
-      // Tambahkan ini untuk keamanan
     }
   });
-  const isDev = !app$1.isPackaged;
+  const isDev = !electron.app.isPackaged;
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
   } else {
-    mainWindow.loadFile("dist/index.html");
+    mainWindow.loadFile(path$1.join(__dirname$1, "../dist/index.html"));
   }
+  mainWindow.webContents.on("did-fail-load", () => {
+    console.error("Failed to load window");
+  });
 }
-app$1.whenReady().then(() => {
+electron.app.whenReady().then(() => {
   createWindow();
-  globalShortcut.register("Control+Space", () => {
+  electron.app.setLoginItemSettings({
+    openAtLogin: true,
+    openAsHidden: true,
+    path: electron.app.getPath("exe")
+  });
+  electron.globalShortcut.register("Control+Space", () => {
+    if (!mainWindow) return;
     if (mainWindow.isVisible()) {
       mainWindow.hide();
     } else {
@@ -16173,78 +16189,151 @@ app$1.whenReady().then(() => {
       mainWindow.focus();
     }
   });
-  ipcMain$1.handle("select-root-folder", async () => {
+  electron.ipcMain.handle("add-root-folder", async () => {
     if (!mainWindow) return null;
     return new Promise((resolve2) => {
+      if (!mainWindow) {
+        resolve2(null);
+        return;
+      }
       if (!mainWindow.isVisible()) {
         mainWindow.show();
       }
       mainWindow.focus();
       setImmediate(async () => {
-        const result = await dialog.showOpenDialog(mainWindow, {
-          title: "Select Project Root Folder",
+        if (!mainWindow) {
+          resolve2(null);
+          return;
+        }
+        const result = await electron.dialog.showOpenDialog(mainWindow, {
+          title: "Add Project Root Folder",
           properties: ["openDirectory"],
           modal: true,
-          defaultPath: store.get("rootFolder", app$1.getPath("home"))
+          defaultPath: electron.app.getPath("home")
         });
         if (result.canceled) {
           resolve2(null);
           return;
         }
         const folderPath = result.filePaths[0];
-        store.set("rootFolder", folderPath);
-        resolve2(folderPath);
+        const currentRoots = getRootFolders();
+        if (!currentRoots.includes(folderPath)) {
+          const updatedRoots = [...currentRoots, folderPath];
+          setRootFolders(updatedRoots);
+          resolve2(updatedRoots);
+        } else {
+          resolve2(currentRoots);
+        }
       });
     });
   });
-  ipcMain$1.handle("get-root-folder", () => {
-    return store.get("rootFolder", null);
+  electron.ipcMain.handle("get-root-folders", () => {
+    return getRootFolders();
   });
-  ipcMain$1.handle("get-projects", () => {
-    const rootFolder = store.get("rootFolder");
-    if (!rootFolder) return [];
-    try {
-      const entries = fs$1.readdirSync(rootFolder, { withFileTypes: true });
-      return entries.filter((e) => e.isDirectory()).map(
-        (e) => ({
+  electron.ipcMain.handle("remove-root-folder", (_, folderPath) => {
+    const currentRoots = getRootFolders();
+    const updatedRoots = currentRoots.filter((root) => root !== folderPath);
+    setRootFolders(updatedRoots);
+    return updatedRoots;
+  });
+  electron.ipcMain.handle("get-projects", () => {
+    const rootFolders = getRootFolders();
+    if (!rootFolders || rootFolders.length === 0) return [];
+    const allProjects = [];
+    rootFolders.forEach((rootFolder) => {
+      try {
+        if (!fs$1.existsSync(rootFolder)) return;
+        const entries = fs$1.readdirSync(rootFolder, { withFileTypes: true });
+        const projects = entries.filter((e) => e.isDirectory()).map((e) => ({
           name: e.name,
-          path: path$1.join(rootFolder, e.name)
-        })
-      );
-    } catch (err) {
-      console.log(err);
-      return [];
+          path: path$1.join(rootFolder, e.name),
+          root: rootFolder
+        }));
+        allProjects.push(...projects);
+      } catch (err) {
+        console.log(`Error reading ${rootFolder}:`, err);
+      }
+    });
+    return allProjects;
+  });
+  electron.ipcMain.handle("open-vscode", async (_, projectPath) => {
+    child_process.exec(`code "${projectPath}"`);
+  });
+  electron.ipcMain.handle("open-explorer", async (_, projectPath) => {
+    if (process.platform === "win32") {
+      child_process.exec(`explorer "${projectPath}"`);
+    } else if (process.platform === "darwin") {
+      child_process.exec(`open "${projectPath}"`);
+    } else {
+      child_process.exec(`xdg-open "${projectPath}"`);
     }
   });
-  ipcMain$1.handle("open-vscode", async (_, projectPath) => {
-    exec(`code "${projectPath}"`);
+  electron.ipcMain.handle("open-terminal", async (_, projectPath) => {
+    if (process.platform === "win32") {
+      child_process.exec(`start cmd /K "cd /d "${projectPath}""`);
+    } else if (process.platform === "darwin") {
+      child_process.exec(`open -a Terminal "${projectPath}"`);
+    } else {
+      child_process.exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
+    }
   });
-  ipcMain$1.handle("hide-window", () => {
+  electron.ipcMain.handle("open-gitbash", async (_, projectPath) => {
+    if (process.platform === "win32") {
+      child_process.exec(`"C:\\Program Files\\Git\\git-bash.exe" --cd="${projectPath}"`, (error) => {
+        if (error) {
+          child_process.exec(`start bash -c "cd '${projectPath}' && exec bash"`);
+        }
+      });
+    } else if (process.platform === "darwin") {
+      child_process.exec(`open -a Terminal "${projectPath}"`);
+    } else {
+      child_process.exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
+    }
+  });
+  electron.ipcMain.handle("hide-window", () => {
     if (mainWindow) {
       mainWindow.hide();
     }
   });
-  ipcMain$1.handle("toggle-favorite", (_, projectPath) => {
+  electron.ipcMain.handle("toggle-favorite", (_, projectPath) => {
     const favs = new Set(getFavorites());
-    if (favs.has(projectPath)) favs.delete(projectPath);
-    else favs.add(projectPath);
+    if (favs.has(projectPath)) {
+      favs.delete(projectPath);
+    } else {
+      favs.add(projectPath);
+    }
     const next2 = Array.from(favs);
     setFavorites(next2);
     return next2;
   });
-  ipcMain$1.handle("get-meta", () => {
+  electron.ipcMain.handle("get-meta", () => {
     return {
       favorites: getFavorites(),
       recents: getRecents()
     };
   });
-  ipcMain$1.handle("record-recent", (_, projectPath) => {
+  electron.ipcMain.handle("record-recent", (_, projectPath) => {
     const recents = getRecents().filter((p) => p !== projectPath);
     recents.unshift(projectPath);
     setRecents(recents.slice(0, MAX_RECENT));
     return recents;
   });
+  const oldRoot = store.get("rootFolder");
+  if (oldRoot && getRootFolders().length === 0) {
+    setRootFolders([oldRoot]);
+    store.delete("rootFolder");
+  }
 });
-app$1.on("will-quit", () => {
-  globalShortcut.unregisterAll();
+electron.app.on("will-quit", () => {
+  electron.globalShortcut.unregisterAll();
+});
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
+});
+electron.app.on("activate", () => {
+  if (electron.BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });

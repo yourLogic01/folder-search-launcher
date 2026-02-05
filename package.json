@@ -1,13 +1,71 @@
 {
-  "name": "dev-project-launcher",
-  "main": "electron/main.js",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "project-searcher-launcher",
+  "version": "1.0.0",
+  "description": "Quick project launcher with multi-root support",
+  "main": "dist-electron/main.js",
+  "author": "Your Name",
+  "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"vite\" \"npm run electron:dev\"",
-    "electron:dev": "wait-on tcp:5173 && electron .",
-    "build": "vite build && electron-builder"
+    "dev": "vite",
+    "build": "tsc --project tsconfig.electron.json && vite build && electron-builder",
+    "build:win": "tsc --project tsconfig.electron.json && vite build && electron-builder --win",
+    "build:dir": "tsc --project tsconfig.electron.json && vite build && electron-builder --dir",
+    "build:electron": "tsc --project tsconfig.electron.json",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\""
+  },
+  "build": {
+    "appId": "com.projectsearcher.launcher",
+    "productName": "Project Searcher Launcher",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.js"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Project Searcher",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "displayLanguageSelector": false
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Development"
+    }
   },
   "dependencies": {
     "electron-store": "^11.0.2",

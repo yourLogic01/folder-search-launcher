@@ -1,45 +1,56 @@
-import { app, BrowserWindow, globalShortcut } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, dialog } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import Store from "electron-store";
-import { ipcMain, dialog } from "electron";
 import fs from "fs";
 import { exec } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let mainWindow = null;
+let mainWindow: BrowserWindow | null = null;
 const store = new Store();
 
 const MAX_RECENT = 2;
 
-function getFavorites() {
-  return store.get("favorites", []);
+// Types
+interface ProjectMeta {
+  favorites: string[];
+  recents: string[];
 }
 
-function setFavorites(list) {
+interface Project {
+  name: string;
+  path: string;
+  root: string;
+}
+
+// Store helpers
+function getFavorites(): string[] {
+  return store.get("favorites", []) as string[];
+}
+
+function setFavorites(list: string[]): void {
   store.set("favorites", list);
 }
 
-function getRecents() {
-  return store.get("recents", []);
+function getRecents(): string[] {
+  return store.get("recents", []) as string[];
 }
 
-function setRecents(list) {
+function setRecents(list: string[]): void {
   store.set("recents", list);
 }
 
-// New multi-root functions
-function getRootFolders() {
-  return store.get("rootFolders", []);
+function getRootFolders(): string[] {
+  return store.get("rootFolders", []) as string[];
 }
 
-function setRootFolders(list) {
+function setRootFolders(list: string[]): void {
   store.set("rootFolders", list);
 }
 
-function createWindow() {
+function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 600,
     height: 400,
@@ -62,14 +73,11 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
-    // Buka DevTools di development (optional)
     // mainWindow.webContents.openDevTools();
   } else {
-    // Production: load from dist folder yang ada di resources
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  // Handle window load error
   mainWindow.webContents.on("did-fail-load", () => {
     console.error("Failed to load window");
   });
@@ -81,11 +89,13 @@ app.whenReady().then(() => {
   // Setup auto-launch on startup
   app.setLoginItemSettings({
     openAtLogin: true,
-    openAsHidden: true, // Start hidden in background
+    openAsHidden: true,
     path: app.getPath("exe"),
   });
 
   globalShortcut.register("Control+Space", () => {
+    if (!mainWindow) return;
+
     if (mainWindow.isVisible()) {
       mainWindow.hide();
     } else {
@@ -95,16 +105,26 @@ app.whenReady().then(() => {
   });
 
   // Add new root folder
-  ipcMain.handle("add-root-folder", async () => {
+  ipcMain.handle("add-root-folder", async (): Promise<string[] | null> => {
     if (!mainWindow) return null;
 
     return new Promise((resolve) => {
+      if (!mainWindow) {
+        resolve(null);
+        return;
+      }
+
       if (!mainWindow.isVisible()) {
         mainWindow.show();
       }
       mainWindow.focus();
 
       setImmediate(async () => {
+        if (!mainWindow) {
+          resolve(null);
+          return;
+        }
+
         const result = await dialog.showOpenDialog(mainWindow, {
           title: "Add Project Root Folder",
           properties: ["openDirectory"],
@@ -120,7 +140,6 @@ app.whenReady().then(() => {
         const folderPath = result.filePaths[0];
         const currentRoots = getRootFolders();
 
-        // Check if already exists
         if (!currentRoots.includes(folderPath)) {
           const updatedRoots = [...currentRoots, folderPath];
           setRootFolders(updatedRoots);
@@ -133,12 +152,12 @@ app.whenReady().then(() => {
   });
 
   // Get all root folders
-  ipcMain.handle("get-root-folders", () => {
+  ipcMain.handle("get-root-folders", (): string[] => {
     return getRootFolders();
   });
 
   // Remove root folder
-  ipcMain.handle("remove-root-folder", (_, folderPath) => {
+  ipcMain.handle("remove-root-folder", (_, folderPath: string): string[] => {
     const currentRoots = getRootFolders();
     const updatedRoots = currentRoots.filter((root) => root !== folderPath);
     setRootFolders(updatedRoots);
@@ -146,12 +165,12 @@ app.whenReady().then(() => {
   });
 
   // Get projects from all root folders
-  ipcMain.handle("get-projects", () => {
+  ipcMain.handle("get-projects", (): Project[] => {
     const rootFolders = getRootFolders();
 
     if (!rootFolders || rootFolders.length === 0) return [];
 
-    const allProjects = [];
+    const allProjects: Project[] = [];
 
     rootFolders.forEach((rootFolder) => {
       try {
@@ -176,82 +195,70 @@ app.whenReady().then(() => {
     return allProjects;
   });
 
-  ipcMain.handle("open-vscode", async (_, projectPath) => {
+  ipcMain.handle("open-vscode", async (_, projectPath: string): Promise<void> => {
     exec(`code "${projectPath}"`);
   });
 
-  ipcMain.handle("open-explorer", async (_, projectPath) => {
-    // Windows
+  ipcMain.handle("open-explorer", async (_, projectPath: string): Promise<void> => {
     if (process.platform === "win32") {
       exec(`explorer "${projectPath}"`);
-    }
-    // macOS
-    else if (process.platform === "darwin") {
+    } else if (process.platform === "darwin") {
       exec(`open "${projectPath}"`);
-    }
-    // Linux
-    else {
+    } else {
       exec(`xdg-open "${projectPath}"`);
     }
   });
 
-  ipcMain.handle("open-terminal", async (_, projectPath) => {
-    // Windows
+  ipcMain.handle("open-terminal", async (_, projectPath: string): Promise<void> => {
     if (process.platform === "win32") {
       exec(`start cmd /K "cd /d "${projectPath}""`);
-    }
-    // macOS
-    else if (process.platform === "darwin") {
-      exec(`open -a Terminal "${projectPath}"`);
-    }
-    // Linux
-    else {
-      exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
-    }
-  });
-
-  ipcMain.handle("open-gitbash", async (_, projectPath) => {
-    // Git Bash is primarily for Windows
-    if (process.platform === "win32") {
-      // Try Git Bash from common installation paths
-      exec(`"C:\\Program Files\\Git\\git-bash.exe" --cd="${projectPath}"`, (error) => {
-        if (error) {
-          // Fallback to opening in current terminal
-          exec(`start bash -c "cd '${projectPath}' && exec bash"`);
-        }
-      });
-    }
-    // On macOS/Linux, just open regular terminal with bash
-    else if (process.platform === "darwin") {
+    } else if (process.platform === "darwin") {
       exec(`open -a Terminal "${projectPath}"`);
     } else {
       exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
     }
   });
 
-  ipcMain.handle("hide-window", () => {
+  ipcMain.handle("open-gitbash", async (_, projectPath: string): Promise<void> => {
+    if (process.platform === "win32") {
+      exec(`"C:\\Program Files\\Git\\git-bash.exe" --cd="${projectPath}"`, (error) => {
+        if (error) {
+          exec(`start bash -c "cd '${projectPath}' && exec bash"`);
+        }
+      });
+    } else if (process.platform === "darwin") {
+      exec(`open -a Terminal "${projectPath}"`);
+    } else {
+      exec(`x-terminal-emulator --working-directory="${projectPath}" || gnome-terminal --working-directory="${projectPath}" || xterm -e "cd '${projectPath}' && bash"`);
+    }
+  });
+
+  ipcMain.handle("hide-window", (): void => {
     if (mainWindow) {
       mainWindow.hide();
     }
   });
 
-  ipcMain.handle("toggle-favorite", (_, projectPath) => {
+  ipcMain.handle("toggle-favorite", (_, projectPath: string): string[] => {
     const favs = new Set(getFavorites());
-    if (favs.has(projectPath)) favs.delete(projectPath);
-    else favs.add(projectPath);
+    if (favs.has(projectPath)) {
+      favs.delete(projectPath);
+    } else {
+      favs.add(projectPath);
+    }
     const next = Array.from(favs);
     setFavorites(next);
     return next;
   });
 
-  ipcMain.handle("get-meta", () => {
+  ipcMain.handle("get-meta", (): ProjectMeta => {
     return {
       favorites: getFavorites(),
       recents: getRecents(),
     };
   });
 
-  ipcMain.handle("record-recent", (_, projectPath) => {
+  ipcMain.handle("record-recent", (_, projectPath: string): string[] => {
     const recents = getRecents().filter((p) => p !== projectPath);
     recents.unshift(projectPath);
     setRecents(recents.slice(0, MAX_RECENT));
@@ -261,11 +268,23 @@ app.whenReady().then(() => {
   // Legacy support - migrate old single root to multi root
   const oldRoot = store.get("rootFolder");
   if (oldRoot && getRootFolders().length === 0) {
-    setRootFolders([oldRoot]);
+    setRootFolders([oldRoot as string]);
     store.delete("rootFolder");
   }
 });
 
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });

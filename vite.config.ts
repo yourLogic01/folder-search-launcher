@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import electron from 'vite-plugin-electron';
-import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import electron from "vite-plugin-electron";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [
@@ -9,10 +9,10 @@ export default defineConfig({
     tailwindcss(), // ✅ Ini sudah benar
     electron([
       {
-        entry: 'electron/main.js',
+        entry: "electron/main.ts",
       },
       {
-        entry: 'electron/preload.js',
+        entry: "electron/preload.ts",
       },
     ]),
   ],

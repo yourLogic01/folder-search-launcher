@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Folder, Star, Plus, X, FolderOpen, Code, FolderOpen as FolderIcon, Terminal, GitBranch } from "lucide-vue-next";
+import { Folder, Star, Plus, X, FolderOpen, Code, FolderOpen as FolderIcon, Terminal, GitBranch, Sun, Moon } from "lucide-vue-next";
 import { ref, onMounted, computed, watch, nextTick } from "vue";
 import Fuse from "fuse.js";
 
@@ -17,6 +17,7 @@ const showRootManager = ref(false);
 const showActionModal = ref(false);
 const selectedProject = ref<Project | null>(null);
 const actionSelectedIndex = ref(0);
+const isDarkMode = ref(true);
 
 const actions = [
   { label: "Open with VSCode", icon: Code, key: "vscode" },
@@ -24,6 +25,11 @@ const actions = [
   { label: "Open in Terminal", icon: Terminal, key: "terminal" },
   { label: "Open with Git Bash", icon: GitBranch, key: "gitbash" },
 ] as const;
+
+const toggleTheme = () => {
+  isDarkMode.value = !isDarkMode.value;
+  localStorage.setItem("theme", isDarkMode.value ? "dark" : "light");
+};
 
 const addRootFolder = async () => {
   const updated = await window.api.addRootFolder();
@@ -48,6 +54,12 @@ const toggleRootManager = () => {
 };
 
 onMounted(async () => {
+  // Load theme preference
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme) {
+    isDarkMode.value = savedTheme === "dark";
+  }
+
   rootFolders.value = await window.api.getRootFolders();
   if (rootFolders.value.length > 0) {
     projects.value = await window.api.getProjects();
@@ -128,7 +140,6 @@ const openSelected = async () => {
   const item = sorted.value[selectedIndex.value];
   if (!item || !listContainerRef.value) return;
 
-  // Show action modal
   selectedProject.value = item;
   showActionModal.value = true;
   actionSelectedIndex.value = 0;
@@ -139,10 +150,8 @@ const executeAction = async (actionKey: string) => {
 
   const project = selectedProject.value;
 
-  // Record recent
   await window.api.recordRecent(project.path);
 
-  // Execute based on action
   switch (actionKey) {
     case "vscode":
       await window.api.openInVSCode(project.path);
@@ -158,7 +167,6 @@ const executeAction = async (actionKey: string) => {
       break;
   }
 
-  // Close modal and hide window
   closeActionModal();
   await window.api.hideWindow();
 };
@@ -178,7 +186,6 @@ const hideLauncher = async () => {
 };
 
 const onKeydown = (e: KeyboardEvent) => {
-  // Handle action modal navigation
   if (showActionModal.value) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -200,7 +207,6 @@ const onKeydown = (e: KeyboardEvent) => {
       focusInput();
     }
 
-    // Number keys for quick selection
     if (e.key >= "1" && e.key <= "4") {
       e.preventDefault();
       const index = parseInt(e.key) - 1;
@@ -254,43 +260,81 @@ const getRootName = (rootPath: string) => {
 </script>
 
 <template>
-  <div class="h-screen w-screen flex items-center justify-center">
-    <div class="w-132 rounded-2xl bg-zinc-900 text-zinc-100 shadow-2xl border border-zinc-700/50 overflow-hidden animate-[scaleFadeIn_120ms_ease-out_forwards] flex flex-col" style="max-height: 90vh" tabindex="0" @keydown="onKeydown">
+  <div class="h-screen w-screen flex items-center justify-center transition-colors duration-300">
+    <div
+      class="w-132 rounded-2xl shadow-2xl overflow-hidden animate-[scaleFadeIn_120ms_ease-out_forwards] flex flex-col transition-all duration-300"
+      :class="[isDarkMode ? 'bg-zinc-900 text-zinc-100 border border-zinc-700/50' : 'bg-white text-gray-900 border border-gray-200']"
+      style="max-height: 90vh"
+      tabindex="0"
+      @keydown="onKeydown"
+    >
       <!-- HEADER - FIXED -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700/50 flex-shrink-0">
+      <div class="flex items-center justify-between px-4 py-3 border-b flex-shrink-0 transition-colors duration-300" :class="isDarkMode ? 'border-zinc-700/50' : 'border-gray-200'">
         <div class="text-sm font-semibold tracking-wide">Project Searcher Launcher</div>
 
         <div class="flex items-center gap-2">
-          <button class="text-zinc-400 hover:text-white transition p-1.5 rounded hover:bg-zinc-800" title="Manage Root Folders" @click="toggleRootManager">
+          <!-- Theme Toggle Button -->
+          <button @click="toggleTheme" class="relative p-1.5 rounded-lg transition-all duration-300 overflow-hidden" :class="isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-200 hover:bg-gray-300'" title="Toggle theme">
+            <div class="relative w-5 h-5">
+              <Transition name="rotate-fade">
+                <Sun v-if="!isDarkMode" :size="20" class="absolute inset-0 text-amber-500" key="sun" />
+                <Moon v-else :size="20" class="absolute inset-0 text-blue-400" key="moon" />
+              </Transition>
+            </div>
+          </button>
+
+          <button
+            class="transition p-1.5 rounded hover:bg-opacity-80"
+            :class="isDarkMode ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'"
+            title="Manage Root Folders"
+            @click="toggleRootManager"
+          >
             <FolderOpen :size="18" />
           </button>
-          <div class="text-xs text-zinc-400">{{ rootFolders.length }} {{ rootFolders.length === 1 ? "root" : "roots" }}</div>
+          <div class="text-xs transition-colors duration-300" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-500'">{{ rootFolders.length }} {{ rootFolders.length === 1 ? "root" : "roots" }}</div>
         </div>
       </div>
 
       <!-- ROOT MANAGER PANEL - SCROLLABLE -->
-      <div v-if="showRootManager" class="border-b border-zinc-700/50 bg-zinc-800/40 flex-shrink-0" style="max-height: 280px; display: flex; flex-direction: column">
+      <div
+        v-if="showRootManager"
+        class="border-b flex-shrink-0 transition-colors duration-300"
+        :class="isDarkMode ? 'border-zinc-700/50 bg-zinc-800/40' : 'border-gray-200 bg-gray-50'"
+        style="max-height: 280px; display: flex; flex-direction: column"
+      >
         <div class="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
           <div class="text-sm font-medium">Root Folders</div>
-          <button class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors text-sm" @click="addRootFolder">
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm" :class="isDarkMode ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-indigo-500 hover:bg-indigo-600 text-white'" @click="addRootFolder">
             <Plus :size="16" />
             Add Root
           </button>
         </div>
 
-        <div v-if="rootFolders.length === 0" class="text-center py-4 text-zinc-500 text-sm px-4">No root folders configured</div>
+        <div v-if="rootFolders.length === 0" class="text-center py-4 text-sm px-4 transition-colors duration-300" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-500'">No root folders configured</div>
 
         <div v-else class="overflow-y-auto custom-scrollbar px-4 pb-4">
           <ul class="space-y-2">
-            <li v-for="root in rootFolders" :key="root" class="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-800/60 hover:bg-zinc-800 transition-colors group">
+            <li
+              v-for="root in rootFolders"
+              :key="root"
+              class="flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group"
+              :class="isDarkMode ? 'bg-zinc-800/60 hover:bg-zinc-800' : 'bg-gray-100 hover:bg-gray-200'"
+            >
               <div class="flex items-center gap-2 min-w-0 flex-1">
-                <Folder :size="16" class="text-zinc-400 flex-shrink-0" />
+                <Folder :size="16" class="flex-shrink-0 transition-colors duration-300" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-500'" />
                 <div class="min-w-0 flex-1">
                   <div class="text-sm font-medium truncate">{{ getRootName(root) }}</div>
-                  <div class="text-xs text-zinc-500 truncate" :title="root">{{ root }}</div>
+                  <div class="text-xs truncate transition-colors duration-300" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-500'" :title="root">
+                    {{ root }}
+                  </div>
                 </div>
               </div>
-              <button class="ml-2 p-1 text-zinc-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100" title="Remove root folder" @click="removeRootFolder(root)">
+              <button
+                class="ml-2 p-1 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                :class="isDarkMode ? 'text-zinc-500 hover:text-red-400' : 'text-gray-400 hover:text-red-500'"
+                title="Remove root folder"
+                @click="removeRootFolder(root)"
+              >
                 <X :size="16" />
               </button>
             </li>
@@ -305,13 +349,14 @@ const getRootName = (rootPath: string) => {
           v-model="keyword"
           :disabled="rootFolders.length === 0"
           placeholder="Search project…"
-          class="w-full mb-3 px-3 py-2 rounded-lg bg-zinc-800 outline-none placeholder:text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+          class="w-full mb-3 px-3 py-2 rounded-lg outline-none flex-shrink-0 transition-all duration-300"
+          :class="isDarkMode ? 'bg-zinc-800 placeholder:text-zinc-400' : 'bg-gray-100 placeholder:text-gray-400 border border-gray-200'"
         />
 
         <!-- Message when no root folders configured -->
         <div v-if="rootFolders.length === 0" class="text-center py-8">
-          <p class="text-zinc-400 mb-3">Please add a root folder first</p>
-          <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-2 mx-auto" @click="addRootFolder">
+          <p class="mb-3 transition-colors duration-300" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-500'">Please add a root folder first</p>
+          <button class="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 mx-auto" :class="isDarkMode ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-indigo-500 hover:bg-indigo-600 text-white'" @click="addRootFolder">
             <Plus :size="18" />
             Add Root Folder
           </button>
@@ -324,40 +369,52 @@ const getRootName = (rootPath: string) => {
               v-for="(p, i) in sorted"
               :key="p.path"
               :data-index="i"
-              :class="['flex items-center justify-between px-3 py-2 rounded-lg transition-colors cursor-pointer', i === selectedIndex ? 'bg-indigo-500/90' : 'bg-zinc-800/60 hover:bg-zinc-800']"
+              :class="[
+                'flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer',
+                i === selectedIndex ? (isDarkMode ? 'bg-indigo-500/90' : 'bg-indigo-500 text-white') : isDarkMode ? 'bg-zinc-800/60 hover:bg-zinc-800' : 'bg-gray-100 hover:bg-gray-200',
+              ]"
               @click="
                 selectedIndex = i;
                 openSelected();
               "
             >
               <div class="flex items-center gap-3 truncate min-w-0 flex-1">
-                <Folder :size="18" :class="['flex-shrink-0', i === selectedIndex ? 'text-zinc-100' : 'text-zinc-400']" />
+                <Folder :size="18" :class="['flex-shrink-0 transition-colors duration-200', i === selectedIndex ? (isDarkMode ? 'text-zinc-100' : 'text-white') : isDarkMode ? 'text-zinc-400' : 'text-gray-500']" />
                 <div class="min-w-0 flex-1">
                   <div class="truncate">
                     {{ p.name }}
                     <span v-if="recents.includes(p.path)" class="ml-2 text-xs opacity-70"> • recent </span>
                   </div>
-                  <div class="text-xs text-zinc-500 truncate mt-0.5">{{ getRootName(p.root) }}</div>
+                  <div class="text-xs truncate mt-0.5 transition-colors duration-200" :class="i === selectedIndex ? 'text-white/80' : isDarkMode ? 'text-zinc-500' : 'text-gray-500'">
+                    {{ getRootName(p.root) }}
+                  </div>
                 </div>
               </div>
 
               <button class="ml-3 flex-shrink-0 p-1" @click.stop="toggleFav(p)" :title="isFav(p) ? 'Unfavorite (Ctrl+D)' : 'Favorite (Ctrl+D)'">
-                <Star :size="18" :class="['transition-all', isFav(p) ? 'text-yellow-400 fill-yellow-400' : 'text-zinc-400 hover:text-zinc-200']" />
+                <Star
+                  :size="18"
+                  :class="[
+                    'transition-all duration-200',
+                    isFav(p) ? 'text-yellow-400 fill-yellow-400' : i === selectedIndex ? 'text-white/70 hover:text-white' : isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-gray-400 hover:text-gray-600',
+                  ]"
+                />
               </button>
             </li>
           </ul>
         </div>
 
-        <p v-else-if="rootFolders.length > 0 && !keyword.trim()" class="text-sm text-zinc-500 mt-4 text-center">Start typing to search project…</p>
+        <p v-else-if="rootFolders.length > 0 && !keyword.trim()" class="text-sm mt-4 text-center transition-colors duration-300" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-500'">Start typing to search project…</p>
 
-        <p v-else-if="rootFolders.length > 0 && keyword.trim() && !sorted.length" class="text-sm text-zinc-500 mt-4 text-center">No projects found</p>
+        <p v-else-if="rootFolders.length > 0 && keyword.trim() && !sorted.length" class="text-sm mt-4 text-center transition-colors duration-300" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-500'">No projects found</p>
       </div>
 
-      <!-- ACTION MODAL - Positioned to the right of selected item -->
+      <!-- ACTION MODAL -->
       <Transition name="fade">
         <div v-if="showActionModal" class="fixed inset-0 z-50" @click.self="closeActionModal">
           <div
-            class="absolute bg-zinc-800/95 backdrop-blur-sm rounded-lg shadow-2xl border border-zinc-700/60 w-64 py-1 animate-[scaleFadeIn_100ms_ease-out_forwards]"
+            class="absolute rounded-lg shadow-2xl w-64 py-1 animate-[scaleFadeIn_100ms_ease-out_forwards] transition-colors duration-300"
+            :class="isDarkMode ? 'bg-zinc-800/95 backdrop-blur-sm border border-zinc-700/60' : 'bg-white/95 backdrop-blur-sm border border-gray-200'"
             :style="{
               top: '50%',
               left: '50%',
@@ -367,7 +424,10 @@ const getRootName = (rootPath: string) => {
             <button
               v-for="(action, i) in actions"
               :key="action.key"
-              :class="['w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors text-left', i === actionSelectedIndex ? 'bg-indigo-500 text-white' : 'hover:bg-zinc-700/50 text-zinc-100']"
+              :class="[
+                'w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-all duration-200 text-left',
+                i === actionSelectedIndex ? (isDarkMode ? 'bg-indigo-500 text-white' : 'bg-indigo-500 text-white') : isDarkMode ? 'hover:bg-zinc-700/50 text-zinc-100' : 'hover:bg-gray-100 text-gray-900',
+              ]"
               @click="executeAction(action.key)"
             >
               <component :is="action.icon" :size="16" class="flex-shrink-0" />
@@ -382,10 +442,9 @@ const getRootName = (rootPath: string) => {
 </template>
 
 <style scoped>
-/* Custom Scrollbar - Smooth & Minimal */
+/* Custom Scrollbar */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(99, 102, 241, 0.5) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -398,11 +457,22 @@ const getRootName = (rootPath: string) => {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(99, 102, 241, 0.5);
   border-radius: 3px;
   transition: background-color 0.2s;
 }
 
+/* Dark mode scrollbar */
+html.dark .custom-scrollbar,
+.custom-scrollbar {
+  scrollbar-color: rgba(99, 102, 241, 0.5) transparent;
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(99, 102, 241, 0.5);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(99, 102, 241, 0.7);
 }
@@ -412,7 +482,7 @@ const getRootName = (rootPath: string) => {
   scroll-behavior: smooth;
 }
 
-/* Fade transition for modal */
+/* Fade transition */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.15s ease;
@@ -421,5 +491,27 @@ const getRootName = (rootPath: string) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Rotate fade transition for theme icons */
+.rotate-fade-enter-active,
+.rotate-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.rotate-fade-enter-from {
+  opacity: 0;
+  transform: rotate(-180deg) scale(0.5);
+}
+
+.rotate-fade-leave-to {
+  opacity: 0;
+  transform: rotate(180deg) scale(0.5);
+}
+
+.rotate-fade-enter-to,
+.rotate-fade-leave-from {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
 }
 </style>

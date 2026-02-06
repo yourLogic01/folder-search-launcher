@@ -8,8 +8,22 @@ import { exec } from "child_process";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Define store schema
+interface StoreSchema {
+  favorites: string[];
+  recents: string[];
+  rootFolders: string[];
+  rootFolder?: string; // Legacy support
+}
+
 let mainWindow: BrowserWindow | null = null;
-const store = new Store();
+const store = new Store({
+  defaults: {
+    favorites: [],
+    recents: [],
+    rootFolders: [],
+  },
+}) as any;
 
 const MAX_RECENT = 2;
 
@@ -128,7 +142,6 @@ app.whenReady().then(() => {
         const result = await dialog.showOpenDialog(mainWindow, {
           title: "Add Project Root Folder",
           properties: ["openDirectory"],
-          modal: true,
           defaultPath: app.getPath("home"),
         });
 

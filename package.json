@@ -69,6 +69,7 @@
   },
   "dependencies": {
     "electron-store": "^11.0.2",
+    "fuse.js": "^7.1.0",
     "lucide-vue-next": "^0.563.0",
     "vue": "^3.5.24"
   },

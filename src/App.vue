@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Folder, Star, Plus, X, FolderOpen, Code, FolderOpen as FolderIcon, Terminal, GitBranch } from "lucide-vue-next";
 import { ref, onMounted, computed, watch, nextTick } from "vue";
+import Fuse from "fuse.js";
 
 type Project = { name: string; path: string; root: string };
 
@@ -65,7 +66,18 @@ const recentIndex = (p: Project) => recents.value.indexOf(p.path);
 const baseFiltered = computed(() => {
   const q = keyword.value.trim().toLowerCase();
   if (!q) return [];
-  return projects.value.filter((p) => p.name.toLowerCase().includes(q));
+
+  const fuseOptions = {
+    keys: ["name"],
+    threshold: 0.4,
+    ignoreLocation: true,
+    minMatchCharLength: 2,
+  };
+
+  const fuse = new Fuse(projects.value, fuseOptions);
+  const result = fuse.search(q);
+
+  return result.map((r) => r.item);
 });
 
 const sorted = computed(() => {
@@ -94,12 +106,6 @@ const focusInput = async () => {
   await nextTick();
   inputRef.value?.focus();
 };
-
-const filtered = computed(() => {
-  const q = keyword.value.trim().toLowerCase();
-  if (!q) return [];
-  return projects.value.filter((p) => p.name.toLowerCase().includes(q));
-});
 
 watch(keyword, () => {
   selectedIndex.value = 0;
@@ -208,15 +214,15 @@ const onKeydown = (e: KeyboardEvent) => {
 
   if (e.key === "ArrowDown") {
     e.preventDefault();
-    if (!filtered.value.length) return;
-    selectedIndex.value = (selectedIndex.value + 1) % filtered.value.length;
+    if (!sorted.value.length) return;
+    selectedIndex.value = (selectedIndex.value + 1) % sorted.value.length;
     scrollToSelected();
   }
 
   if (e.key === "ArrowUp") {
     e.preventDefault();
-    if (!filtered.value.length) return;
-    selectedIndex.value = (selectedIndex.value - 1 + filtered.value.length) % filtered.value.length;
+    if (!sorted.value.length) return;
+    selectedIndex.value = (selectedIndex.value - 1 + sorted.value.length) % sorted.value.length;
     scrollToSelected();
   }
 
